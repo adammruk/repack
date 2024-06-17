@@ -1,5 +1,5 @@
 import path from 'path';
-import type { LoaderContext } from 'loader-utils';
+import { LoaderContext, interpolateName } from 'loader-utils';
 import { AssetResolver } from '../../plugins/AssetsResolverPlugin/AssetResolver';
 import { getOptions } from './options';
 import { extractAssets } from './extractAssets';
@@ -44,9 +44,12 @@ export default async function repackAssetsLoader(this: LoaderContext) {
       .replace(new RegExp(`^[\\.\\${path.sep}]+`), '');
     const resourceExtensionType = path.extname(resourcePath).replace(/^\./, '');
     const suffixPattern = `(@\\d+(\\.\\d+)?x)?(\\.(${options.platform}|native))?\\.${resourceExtensionType}$`;
+
     const resourceFilename = path
       .basename(resourcePath)
       .replace(new RegExp(suffixPattern), '');
+    let remoteAssetModuleFilename = resourceFilename;
+
     // Name with embedded resourceDirname eg `node_modules_reactnative_libraries_newappscreen_components_logo.png`
     const resourceNormalizedFilename = `${(resourceDirname.length === 0
       ? resourceFilename
@@ -151,12 +154,24 @@ export default async function repackAssetsLoader(this: LoaderContext) {
           const name = `${resourceFilename}${
             scaleKey === '@1x' ? '' : scaleKey
           }.${resourceExtensionType}`;
-          destination = path.join(
-            options.remote?.enabled ? remoteAssetsDirname : '',
-            assetsDirname,
-            resourceDirname,
-            name
-          );
+
+          if (options.remote?.enabled) {
+            remoteAssetModuleFilename = interpolateName(
+              this,
+              options.remote.assetModuleFilename ?? '[path]/[hash].[ext]',
+              {
+                content,
+                context: this.rootContext,
+              }
+            );
+            destination = path.join(
+              remoteAssetsDirname,
+              assetsDirname,
+              remoteAssetModuleFilename
+            );
+          } else {
+            destination = path.join(assetsDirname, resourceDirname, name);
+          }
         }
 
         return {
@@ -205,9 +220,9 @@ export default async function repackAssetsLoader(this: LoaderContext) {
             assets,
             assetsDirname,
             remotePublicPath: options.remote.publicPath,
-            resourceDirname,
+            resourceDirname: path.dirname(remoteAssetModuleFilename),
             resourceExtensionType,
-            resourceFilename,
+            resourceFilename: path.basename(remoteAssetModuleFilename),
             resourcePath,
             suffixPattern,
             pathSeparatorRegexp,

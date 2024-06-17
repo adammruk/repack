@@ -9,6 +9,7 @@ export interface Options {
   publicPath?: string;
   remote?: {
     enabled: boolean;
+    assetModuleFilename?: string;
     publicPath: string;
   };
 }
@@ -33,6 +34,7 @@ export const optionsSchema: Schema = {
       required: ['enabled', 'publicPath'],
       properties: {
         enabled: { type: 'boolean' },
+        assetModuleFilename: { type: 'string' },
         publicPath: { type: 'string', pattern: '^https?://' },
       },
     },
